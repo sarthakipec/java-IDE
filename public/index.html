@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Java Online IDE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Fira+Code&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.30.1/min/vs/loader.min.js"></script>
+    <style>
+        body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+}
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background-color: #16213e;
+    color: #e94560;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.top-bar button, .top-bar select {
+    margin-right: 15px;
+    padding: 8px 15px;
+    background-color: #0f3460;
+    border: none;
+    color: #e0e0e0;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.top-bar button:hover, .top-bar select:hover {
+    background-color: #e94560;
+    color: #ffffff;
+}
+
+.top-bar select {
+    background-color: #0f3460;
+}
+
+#editor-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.editor-left, .editor-right {
+    width: 50%;
+    padding: 0;
+    border-right: 1px solid #0f3460;
+}
+
+#output {
+    height: 64.38%;
+    background: #16213e;
+    color: #e0e0e0;
+    padding: 15px;
+    overflow-y: auto;
+    border: none;
+    font-family: 'Fira Code', monospace;
+    line-height: 1.6;
+}
+
+.tabs {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #0f3460;
+    color: #e0e0e0;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+.tabs .tab {
+    margin-right: 10px;
+    padding: 8px 15px;
+    background-color: #1a1a2e;
+    border: none;
+    color: #e0e0e0;
+    cursor: pointer;
+    border-radius: 5px 5px 0 0;
+    display: flex;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.tabs .tab:hover {
+    background-color: #e94560;
+    color: #ffffff;
+}
+
+.tabs .tab .close-btn, .tabs .tab .edit-btn {
+    margin-left: 10px;
+    font-size: 12px;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.tabs .tab .close-btn:hover, .tabs .tab .edit-btn:hover {
+    opacity: 1;
+}
+
+.tabs .tab.active {
+    background-color: #e94560;
+    color: #ffffff;
+}
+
+.add-tab-btn {
+    margin-right: 10px;
+    padding: 8px 15px;
+    background-color: #0f3460;
+    color: #e0e0e0;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: all 0.3s ease;
+}
+
+.add-tab-btn:hover {
+    background-color: #e94560;
+    color: #ffffff;
+}
+
+.tabs::-webkit-scrollbar {
+    height: 6px;
+}
+
+.tabs::-webkit-scrollbar-thumb {
+    background-color: #e94560;
+    border-radius: 3px;
+}
+
+.tabs::-webkit-scrollbar-track {
+    background-color: #0f3460;
+}
+
+.editor-instance {
+    width: 100%;
+    height: 100%;
+    display: none;
+}
+
+.editor-instance.active {
+    display: block;
+}
+
+#input-container {
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    background-color: #16213e;
+    color: #e0e0e0;
+}
+
+#input-container textarea {
+    width: 100%;
+    height: 120px;
+    margin-top: 10px;
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    border: 1px solid #0f3460;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: 'Fira Code', monospace;
+    resize: vertical;
+    transition: all 0.3s ease;
+}
+
+#input-container textarea:focus {
+    border-color: #e94560;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.2);
+}
+
+/* Add smooth transitions */
+* {
+    transition: all 0.3s ease;
+}
+
+/* Improve button and input focus styles */
+button:focus, select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(233, 69, 96, 0.5);
+}
+
+/* Remove the "Choose File" element */
+input[type="file"] {
+    display: none;
+}
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div>
+            <button onclick="runCode()">Run</button>
+            <button onclick="debugCode()">Debug</button>
+            <button onclick="saveAs()">Save As</button>
+            <button onclick="openFile()">Open</button>
+        </div>
+        <div>
+            <select id="themeSelect" onchange="changeTheme(this.value)">
+                <option value="vs-dark">Visual Studio Dark </option>
+                <option value="vs">Visual Studio Light</option>
+                <option value="hc-black">High Contrast Black</option>
+                <option value="hc-light">High Contrast Light</option>
+            </select>
+            <select id="fontSelect" onchange="changeFont(this.value)">
+                <option value="Roboto">Roboto</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Monaco">Monaco</option>
+                <option value="Open Sans">Open Sans</option>
+                <option value="Lato">Lato</option>
+                <option value="Montserrat">Montserrat</option>
+                <option value="Poppins">Poppins</option>
+                <option value="Merriweather">Merriweather</option>
+                <option value="Source Sans Pro">Source Sans Pro</option>
+                
+            </select>
+            <select id="fontSizeSelect" onchange="changeFontSize(this.value)">
+                <option value="14">14</option>
+                <option value="16">16</option>
+                <option value="18">18</option>
+                <option value="20">20</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+        <div class="tab active" id="tab-Main" onclick="switchTab('Main')">Main.java<span class="edit-btn" onclick="editTabName('Main', event)">✎</span><span class="close-btn" onclick="closeTab('Main', event)">X</span></div>
+        <div class="add-tab-btn" onclick="addNewTab()">+</div>
+    </div>
+
+    <div id="editor-container">
+        <div class="editor-left" id="editor-left">
+            <div id="editor-Main" class="editor-instance active"></div>
+        </div>
+        <div class="editor-right">
+            <div id="input-container">
+                <label for="input">Input (optional):</label>
+                <textarea id="input"></textarea>
+            </div>
+            <div id="output">Output will appear here...</div>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" class="hidden" accept=".java" onchange="loadFile(event)" />
+
+    <script src="https://unpkg.com/monaco-editor/min/vs/loader.js"></script>
+    <script>
+        var currentTab = 'Main';
+        var editors = {};
+        var tabOrder = ['Main'];
+
+        require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' } });
+        require(['vs/editor/editor.main'], function () {
+    createEditor('Main');
+    populateThemes();
+
+    // Register snippets for Java based on your shortcuts
+    monaco.languages.registerCompletionItemProvider('java', {
+        provideCompletionItems: function (model, position) {
+            var suggestions = [
+                {
+                    label: 'cast',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: '((SomeType) expr)',
+                    documentation: 'Casts the expression to a new type'
+                },
+                {
+                    label: 'else',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if (!expr) {\n    // code\n}',
+                    documentation: 'Creates a negated if statement'
+                },
+                {
+                    label: 'for',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'for (T item : expr) {\n    // code\n}',
+                    documentation: 'Creates a for statement'
+                },
+                {
+                    label: 'fori',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'for (int i = 0; i < expr.length; i++) {\n    // code\n}',
+                    documentation: 'Creates a for loop iterating over an array'
+                },
+                {
+                    label: 'forr',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'for (int i = expr.length - 1; i >= 0; i--) {\n    // code\n}',
+                    documentation: 'Creates a reverse for loop iterating over an array'
+                },
+                {
+                    label: 'if',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if (expr) {\n    // code\n}',
+                    documentation: 'Creates an if statement'
+                },
+                {
+                    label: 'nnull',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if (expr != null) {\n    // code\n}',
+                    documentation: 'Checks if the expression is not null'
+                },
+                {
+                    label: 'null',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'if (expr == null) {\n    // code\n}',
+                    documentation: 'Checks if the expression is null'
+                },
+                {
+                    label: 'sysout',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'System.out.println(expr);',
+                    documentation: 'Prints output to the console'
+                },
+                {
+                    label: 'throw',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'throw new Exception("Error message");',
+                    documentation: 'Throws an exception'
+                },
+                {
+                    label: 'var',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'T name = expr;',
+                    documentation: 'Creates a variable declaration'
+                },
+                {
+                    label: 'while',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'while (expr) {\n    // code\n}',
+                    documentation: 'Creates a while loop'
+                },
+                {
+                    label: 'trycatch',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'try {\n    ${1:// code}\n} catch (${2:Exception e}) {\n    ${3:// exception handling}\n}',
+                    documentation: 'Creates a try-catch block'
+                },
+                {
+                    label: 'class',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'public class ${1:ClassName} {\n\n}',
+                    documentation: 'Creates a class definition'
+                },
+                {
+                    label: 'main',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'public static void main(String[] args) {\n    // code\n}',
+                    documentation: 'Creates the main method'
+                },
+                {
+                    label: 'switch',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'switch (expr) {\n    case value1:\n        // code\n        break;\n    case value2:\n        // code\n        break;\n    default:\n        // code\n}',
+                    documentation: 'Creates a switch statement'
+                },
+                {
+                    label: 'return',
+                    kind: monaco.languages.CompletionItemKind.Snippet,
+                    insertText: 'return value;',
+                    documentation: 'Returns a value from a method'
+                }
+
+            ];
+
+            return { suggestions: suggestions };
+        }
+    });
+});
+
+
+        function createEditor(tabId) {
+            const editorElement = document.getElementById(`editor-${tabId}`);
+            editors[tabId] = monaco.editor.create(editorElement, {
+                value: `public class ${tabId} {\n    public static void main(String[] args) {\n        System.out.println("Hello, ${tabId}!");\n    }\n}`,
+                language: 'java',
+                theme: 'vs-dark',
+                fontFamily: 'Consolas',
+                fontSize: 14,
+                automaticLayout: true
+            });
+        }
+
+        function populateThemes() {
+            const themes = ['vs', 'vs-dark', 'hc-black'];
+            const themeSelect = document.getElementById('themeSelect');
+            themes.forEach(theme => {
+                const option = document.createElement('option');
+                option.value = theme;
+                option.textContent = theme;
+                themeSelect.appendChild(option);
+            });
+        }
+
+        function changeTheme(theme) {
+            monaco.editor.setTheme(theme);
+        }
+
+        function changeFont(font) {
+            Object.values(editors).forEach(editor => {
+                editor.updateOptions({ fontFamily: font });
+            });
+        }
+
+        function changeFontSize(size) {
+            Object.values(editors).forEach(editor => {
+                editor.updateOptions({ fontSize: parseInt(size) });
+            });
+        }
+
+        async function runCode() {
+            const code = editors[currentTab].getValue();
+            const input = document.getElementById('input').value;
+            document.getElementById('output').innerText = 'Running code...';
+
+            try {
+                const response = await fetch('http://localhost:3000/compile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    document.getElementById('output').innerText = `Error: ${data.error}`;
+                } else {
+                    document.getElementById('output').innerText = data.output;
+                }
+            } catch (error) {
+                document.getElementById('output').innerText = `Error: ${error.message}`;
+            }
+        }
+
+        async function debugCode() {
+            const code = editors[currentTab].getValue();
+            const input = document.getElementById('input').value;
+            document.getElementById('output').innerText = 'Debugging code...';
+
+            try {
+                const response = await fetch('http://localhost:3000/debug', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.error) {
+                    document.getElementById('output').innerText = `Debug Error: ${data.error}`;
+                } else {
+                    document.getElementById('output').innerText = `Debug Output:\n${data.output}`;
+                }
+            } catch (error) {
+                document.getElementById('output').innerText = `Debug Error: ${error.message}`;
+            }
+        }
+
+        function saveAs() {
+            const code = editors[currentTab].getValue();
+            const blob = new Blob([code], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${currentTab}.java`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function openFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        function loadFile(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    const fileName = file.name.replace('.java', '');
+                    addNewTab(fileName, content);
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function addNewTab(tabId, content) {
+            if (!tabId) {
+                tabId = `Class${Object.keys(editors).length + 1}`;
+            }
+            const newTabName = `${tabId}.java`;
+
+            const newTabDiv = document.createElement('div');
+            newTabDiv.className = 'tab';
+            newTabDiv.id = `tab-${tabId}`;
+            newTabDiv.innerHTML = `${newTabName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
+            newTabDiv.onclick = () => switchTab(tabId);
+
+            const plusBtn = document.querySelector('.add-tab-btn');
+            plusBtn.insertAdjacentElement('beforebegin', newTabDiv);
+
+            const newEditorDiv = document.createElement('div');
+            newEditorDiv.id = `editor-${tabId}`;
+            newEditorDiv.className = 'editor-instance';
+            document.getElementById('editor-left').appendChild(newEditorDiv);
+
+            createEditor(tabId);
+            if (content) {
+                editors[tabId].setValue(content);
+            }
+
+            tabOrder.push(tabId);
+            switchTab(tabId);
+
+            document.getElementById('tabs').scrollLeft = document.getElementById('tabs').scrollWidth;
+        }
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            document.querySelectorAll('.editor-instance').forEach(editor => editor.style.display = 'none');
+            document.getElementById(`editor-${tabId}`).style.display = 'block';
+
+            editors[tabId].layout();
+        }
+
+        function closeTab(tabId, event) {
+            event.stopPropagation();
+            document.getElementById(`tab-${tabId}`).remove();
+            document.getElementById(`editor-${tabId}`).remove();
+            delete editors[tabId];
+            tabOrder = tabOrder.filter(id => id !== tabId);
+
+            if (tabOrder.length > 0) {
+                switchTab(tabOrder[tabOrder.length - 1]);
+            }
+        }
+
+        function editTabName(tabId, event) {
+            event.stopPropagation();
+            const tabElement = document.getElementById(`tab-${tabId}`);
+            const currentName = tabElement.childNodes[0].nodeValue;
+            tabElement.innerHTML = `<input type="text" value="${currentName}" onblur="saveTabName('${tabId}', this)" onkeydown="handleTabNameKeydown(event, '${tabId}', this)" />`;
+            tabElement.querySelector('input').focus();
+        }
+
+        function saveTabName(tabId, inputElement) {
+            const newName = inputElement.value.trim();
+            if (newName) {
+                const tabElement = document.getElementById(`tab-${tabId}`);
+                tabElement.innerHTML = `${newName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
+            }
+        }
+
+        function handleTabNameKeydown(event, tabId, inputElement) {
+            if (event.key === 'Enter') {
+                saveTabName(tabId, inputElement);
+            }
+        }
+    </script>
+</body>
+</html>
