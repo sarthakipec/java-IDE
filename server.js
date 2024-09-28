@@ -12,10 +12,11 @@ app.use(express.json());
 app.use(express.static('public'));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Temporary directory for Java files
+// Temp directory for Java files
 const tempDir = path.join(__dirname, 'temp');
-const srcDir = path.join(__dirname, 'src');
-const fullPath = path.join(srcDir, javaFileName); // Updated from tempDir to srcDir
+
+// Ensure temp directory exists at runtime
+fs.mkdir(tempDir, { recursive: true }).catch(console.error);
 
 
 // Ensure temp directory exists
