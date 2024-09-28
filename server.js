@@ -63,6 +63,15 @@ app.post('/compile', async (req, res) => {
     }
 });
 
+const response = await fetch('https://your-app.onrender.com/compile', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code, fileName: currentTab, input }),
+});
+
+
 app.post('/debug', async (req, res) => {
     const { code, fileName, input } = req.body;
     const javaFileName = `${fileName}.java`;
