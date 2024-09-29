@@ -5,7 +5,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const port = process.env.PORT || 3000;  // Use the dynamic port in a deployed environment
+const port = 3000;
 
 app.use(cors());
 app.use(express.json());
@@ -14,7 +14,7 @@ app.use(express.static('public'));
 // Temporary directory for Java files
 const tempDir = path.join(__dirname, 'temp');
 
-// Ensure temp directory exists at runtime
+// Ensure temp directory exists
 fs.mkdir(tempDir, { recursive: true }).catch(console.error);
 
 app.post('/compile', async (req, res) => {
@@ -23,10 +23,10 @@ app.post('/compile', async (req, res) => {
     const fullPath = path.join(tempDir, javaFileName);
 
     try {
-        // Write Java file based on user input
+        // Write Java file
         await fs.writeFile(fullPath, code);
 
-        // Compile the Java file
+        // Compile Java file
         await new Promise((resolve, reject) => {
             exec(`javac ${fullPath}`, (error, stdout, stderr) => {
                 if (error) reject(stderr);
@@ -34,7 +34,7 @@ app.post('/compile', async (req, res) => {
             });
         });
 
-        // Run the Java program
+        // Run Java program
         const result = await new Promise((resolve, reject) => {
             const process = exec(`java -cp ${tempDir} ${fileName}`, (error, stdout, stderr) => {
                 if (error) reject(stderr);
@@ -49,14 +49,12 @@ app.post('/compile', async (req, res) => {
         });
 
         res.json({ output: result });
-
     } catch (error) {
         res.status(500).json({ error: error.toString() });
-
     } finally {
-        // Clean up temporary files after execution
-        await fs.unlink(fullPath).catch(console.error); // Delete the .java file
-        await fs.unlink(path.join(tempDir, `${fileName}.class`)).catch(console.error); // Delete the .class file
+        // Clean up temporary files
+        await fs.unlink(fullPath).catch(console.error);
+        await fs.unlink(path.join(tempDir, `${fileName}.class`)).catch(console.error);
     }
 });
 
@@ -66,7 +64,7 @@ app.post('/debug', async (req, res) => {
     const fullPath = path.join(tempDir, javaFileName);
 
     try {
-        // Write Java file based on user input
+        // Write Java file
         await fs.writeFile(fullPath, code);
 
         // Compile Java file with debug information
@@ -104,7 +102,7 @@ app.post('/debug', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: error.toString() });
     } finally {
-        // Clean up temporary files after execution
+        // Clean up temporary files
         await fs.unlink(fullPath).catch(console.error);
         await fs.unlink(path.join(tempDir, `${fileName}.class`)).catch(console.error);
     }
@@ -115,7 +113,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
 app.listen(port, () => {
-    console.log(`Server running at port ${port}`);
+    console.log(`Server running at http://localhost:${port}`);
 });
