@@ -432,8 +432,13 @@ input[type="file"] {
             document.getElementById('output').innerText = 'Running code...';
 
             try {
-                const response = await fetch('https://java-ide.onrender.com/', { /*...*/ });
-
+                const response = await fetch('http://localhost:3000/compile', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
@@ -456,8 +461,13 @@ input[type="file"] {
             document.getElementById('output').innerText = 'Debugging code...';
 
             try {
-                const response = await fetch('https://java-ide.onrender.com/', { /*...*/ });
-
+                const response = await fetch('http://localhost:3000/debug', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
