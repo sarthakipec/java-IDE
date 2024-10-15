@@ -1,0 +1,63 @@
+1. Install any code editor in your system
+    for example - VS code, sublime text, apache netbeans, etc
+    
+
+2. Install Node.js and npm in your system
+   link - https://nodejs.org/en/download/prebuilt-installer
+   after installing check its versions
+   node -v # should print `v20.18.0`
+   npm -v # should print `10.8.2`
+
+3.Extract the zip folder and open it in code editor as open folder,
+    The file structure should be like this,
+    ONLINE-JAVA-COMPILER - SINGLE VERSION
+    ├── public
+    │   └── index.html
+    ├── temp
+    │   ├── file4.class
+    │   └── file4.java
+    ├── .gitignore
+    ├── package-lock.json
+    ├── package.json
+    ├── readme
+    ├── README.md
+    └── server.js
+
+4. Install dependencies:
+   npm install express cors
+
+   Once you install the dependencies, the file structure will be-
+   ONLINE-JAVA-COMPILER - SINGLE VERSION
+    ├── node_modules
+    ├── public
+    │   └── index.html
+    ├── temp
+    │   ├── file4.class
+    │   └── file4.java
+    ├── .gitignore
+    ├── package-lock.json
+    ├── package.json
+    ├── readme
+    ├── README.md
+    └── server.js
+
+5. Save the codes with ctrl+s
+
+
+6. Run the server:
+    Write the command in terminal-
+    node server.js
+
+7. This link will be active then, click the link or copy the link and paste it in any of your browser
+    http://localhost:3000/
+
+8. Write the code in the editor and click on compile and run button,
+   the result will be shown in the output section.
+
+9. Until the node server is running in the terminal, you use the website,
+    to stop the server press ctrl+c in the terminal.
+
+10. To run the server again, write the command in terminal-
+    node server.js
+
+11. The server will be running again and the website will be active again.
