@@ -59,16 +59,18 @@
     display: flex;
     flex: 1;
     overflow: hidden;
+    height: calc(100vh - 60px); /* Adjust this value as needed */
 }
 
 .editor-left, .editor-right {
     width: 50%;
+    height: 100%;
     padding: 0;
     border-right: 1px solid #0f3460;
 }
 
 #output {
-    height: 64.38%;
+    height: 53%;
     background: #16213e;
     color: #e0e0e0;
     padding: 15px;
@@ -106,14 +108,14 @@
     color: #ffffff;
 }
 
-.tabs .tab .close-btn, .tabs .tab .edit-btn {
+.tabs .tab .close-btn, .tabs .tab .edit-btn, .tabs .tab .duplicate-btn {
     margin-left: 10px;
     font-size: 12px;
     opacity: 0.7;
     transition: opacity 0.3s ease;
 }
 
-.tabs .tab .close-btn:hover, .tabs .tab .edit-btn:hover {
+.tabs .tab .close-btn:hover, .tabs .tab .edit-btn:hover, .tabs .tab .duplicate-btn:hover {
     opacity: 1;
 }
 
@@ -203,6 +205,53 @@ button:focus, select:focus {
 input[type="file"] {
     display: none;
 }
+
+#input-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-row {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.input-row input {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+#terminal {
+    height: 100%;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+    font-family: 'Consolas', 'Courier New', monospace;
+    padding: 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#terminal-output {
+    flex-grow: 1;
+    white-space: pre-wrap;
+    overflow-y: auto;
+}
+
+#terminal-input-line {
+    display: flex;
+    align-items: center;
+}
+
+#terminal-input {
+    flex-grow: 1;
+    background-color: transparent;
+    border: none;
+    color: #d4d4d4;
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
     </style>
 </head>
 <body>
@@ -212,6 +261,7 @@ input[type="file"] {
             <button onclick="debugCode()">Debug</button>
             <button onclick="saveAs()">Save As</button>
             <button onclick="openFile()">Open</button>
+            <!-- Removed Java version select -->
         </div>
         <div>
             <select id="themeSelect" onchange="changeTheme(this.value)">
@@ -242,7 +292,7 @@ input[type="file"] {
     </div>
 
     <div class="tabs" id="tabs">
-        <div class="tab active" id="tab-Main" onclick="switchTab('Main')">Main.java<span class="edit-btn" onclick="editTabName('Main', event)">✎</span><span class="close-btn" onclick="closeTab('Main', event)">X</span></div>
+        <div class="tab active" id="tab-Main" onclick="switchTab('Main')">Main.java<span class="edit-btn" onclick="editTabName('Main', event)">✎</span><span class="duplicate-btn" onclick="duplicateTab('Main', event)">D</span><span class="close-btn" onclick="closeTab('Main', event)">X</span></div>
         <div class="add-tab-btn" onclick="addNewTab()">+</div>
     </div>
 
@@ -251,11 +301,13 @@ input[type="file"] {
             <div id="editor-Main" class="editor-instance active"></div>
         </div>
         <div class="editor-right">
-            <div id="input-container">
-                <label for="input">Input (optional):</label>
-                <textarea id="input"></textarea>
+            <div id="terminal">
+                <div id="terminal-output"></div>
+                <div id="terminal-input-line">
+                    <span>> </span>
+                    <input type="text" id="terminal-input" autofocus>
+                </div>
             </div>
-            <div id="output">Output will appear here...</div>
         </div>
     </div>
 
@@ -266,11 +318,15 @@ input[type="file"] {
         var currentTab = 'Main';
         var editors = {};
         var tabOrder = ['Main'];
+        var tabDuplicateCount = {};
+        var currentJavaVersion = '';
+        let tabHighestCount = {};
 
         require.config({ paths: { 'vs': 'https://unpkg.com/monaco-editor/min/vs' } });
         require(['vs/editor/editor.main'], function () {
     createEditor('Main');
     populateThemes();
+    populateJavaVersions();
 
     // Register snippets for Java based on your shortcuts
     monaco.languages.registerCompletionItemProvider('java', {
@@ -395,7 +451,12 @@ input[type="file"] {
                 theme: 'vs-dark',
                 fontFamily: 'Consolas',
                 fontSize: 14,
-                automaticLayout: true
+                automaticLayout: true,
+                lineNumbers: 'on',
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                lineHeight: 20,
+                padding: { top: 10 }
             });
         }
 
@@ -426,10 +487,18 @@ input[type="file"] {
             });
         }
 
+        let inputResolver = null;
+        let isWaitingForInput = false;
+
+        let currentProcess = null;
+
         async function runCode() {
             const code = editors[currentTab].getValue();
-            const input = document.getElementById('input').value;
-            document.getElementById('output').innerText = 'Running code...';
+            const terminalOutput = document.getElementById('terminal-output');
+            const terminalInput = document.getElementById('terminal-input');
+
+            terminalOutput.innerHTML = '';
+            terminalInput.value = '';
 
             try {
                 const response = await fetch('http://localhost:3000/compile', {
@@ -437,28 +506,57 @@ input[type="file"] {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                    body: JSON.stringify({
+                        code,
+                        fileName: currentTab,
+                    }),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
-                const data = await response.json();
-                if (data.error) {
-                    document.getElementById('output').innerText = `Error: ${data.error}`;
-                } else {
-                    document.getElementById('output').innerText = data.output;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    terminalOutput.innerHTML += chunk;
+                    terminalOutput.scrollTop = terminalOutput.scrollHeight;
                 }
             } catch (error) {
-                document.getElementById('output').innerText = `Error: ${error.message}`;
+                terminalOutput.innerHTML += `Error: ${error.message}\n`;
             }
         }
 
+        document.getElementById('terminal-input').addEventListener('keypress', async function(e) {
+            if (e.key === 'Enter') {
+                const input = this.value;
+                this.value = '';
+                
+                const terminalOutput = document.getElementById('terminal-output');
+                terminalOutput.innerHTML += `${input}\n`;
+                terminalOutput.scrollTop = terminalOutput.scrollHeight;
+                
+                try {
+                    const inputResponse = await fetch('http://localhost:3000/input', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ input }),
+                    });
+                    if (!inputResponse.ok) {
+                        throw new Error('Failed to send input');
+                    }
+                } catch (error) {
+                    terminalOutput.innerHTML += `Error: ${error.message}\n`;
+                }
+            }
+        });
+
         async function debugCode() {
             const code = editors[currentTab].getValue();
-            const input = document.getElementById('input').value;
-            document.getElementById('output').innerText = 'Debugging code...';
+            document.getElementById('output').innerText = 'Starting debug process...';
 
             try {
                 const response = await fetch('http://localhost:3000/debug', {
@@ -466,7 +564,7 @@ input[type="file"] {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ code, fileName: currentTab, input }),
+                    body: JSON.stringify({ code, fileName: currentTab }),
                 });
 
                 if (!response.ok) {
@@ -477,22 +575,90 @@ input[type="file"] {
                 if (data.error) {
                     document.getElementById('output').innerText = `Debug Error: ${data.error}`;
                 } else {
-                    document.getElementById('output').innerText = `Debug Output:\n${data.output}`;
+                    // Display debug output
+                    document.getElementById('output').innerText = data.debugOutput;
                 }
             } catch (error) {
                 document.getElementById('output').innerText = `Debug Error: ${error.message}`;
             }
         }
 
-        function saveAs() {
+        async function saveAs() {
             const code = editors[currentTab].getValue();
-            const blob = new Blob([code], { type: 'text/plain' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = `${currentTab}.java`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            
+            try {
+                // Ask user for save location and file name
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: `${currentTab}.java`,
+                    types: [{
+                        description: 'Java Files',
+                        accept: {'text/java': ['.java']},
+                    }],
+                });
+
+                // Create a writable stream and write the content
+                const writable = await handle.createWritable();
+                await writable.write(code);
+                await writable.close();
+
+                // Update the current tab name to match the saved file
+                const fileName = handle.name.replace('.java', '');
+                updateTabName(currentTab, fileName);
+
+            } catch (err) {
+                if (err.name !== 'AbortError') {
+                    console.error('Failed to save file:', err);
+                    alert('Failed to save file. Please try again.');
+                }
+            }
+        }
+
+        function updateTabName(oldTabId, newTabId) {
+            console.log(`Updating tab name from '${oldTabId}' to '${newTabId}'`);
+            const tabElement = document.getElementById(`tab-${oldTabId}`);
+            if (tabElement) {
+                const displayName = `${newTabId}.java`;
+                tabElement.id = `tab-${newTabId}`;
+                tabElement.innerHTML = `${displayName}<span class="edit-btn" onclick="editTabName('${newTabId}', event)">✎</span><span class="duplicate-btn" onclick="duplicateTab('${newTabId}', event)">D</span><span class="close-btn" onclick="closeTab('${newTabId}', event)">X</span>`;
+                tabElement.onclick = (event) => {
+                    if (!event.target.classList.contains('edit-btn') && 
+                        !event.target.classList.contains('duplicate-btn') && 
+                        !event.target.classList.contains('close-btn')) {
+                        switchTab(newTabId);
+                    }
+                };
+
+                console.log(`Updating editors object`);
+                editors[newTabId] = editors[oldTabId];
+                delete editors[oldTabId];
+
+                console.log(`Updating currentTab if necessary`);
+                if (currentTab === oldTabId) {
+                    currentTab = newTabId;
+                }
+
+                console.log(`Updating tabOrder`);
+                const index = tabOrder.indexOf(oldTabId);
+                if (index !== -1) {
+                    tabOrder[index] = newTabId;
+                }
+                console.log('New tabOrder:', tabOrder);
+
+                console.log(`Updating editor element id`);
+                const editorElement = document.getElementById(`editor-${oldTabId}`);
+                if (editorElement) {
+                    editorElement.id = `editor-${newTabId}`;
+                }
+
+                // Update the Monaco Editor model
+                const model = editors[newTabId].getModel();
+                if (model) {
+                    monaco.editor.setModelLanguage(model, 'java');
+                    model.updateOptions({ tabSize: 4 });
+                }
+            } else {
+                console.error(`Could not find tab element with id 'tab-${oldTabId}'`);
+            }
         }
 
         function openFile() {
@@ -506,7 +672,13 @@ input[type="file"] {
                 reader.onload = function(e) {
                     const content = e.target.result;
                     const fileName = file.name.replace('.java', '');
-                    addNewTab(fileName, content);
+                    
+                    // Check if a tab with the same name already exists
+                    if (tabOrder.includes(fileName)) {
+                        alert(`A file named "${fileName}.java" is already open. Please close it before opening this file.`);
+                    } else {
+                        addNewTab(fileName, content);
+                    }
                 };
                 reader.readAsText(file);
             }
@@ -514,14 +686,22 @@ input[type="file"] {
 
         function addNewTab(tabId, content) {
             if (!tabId) {
-                tabId = `Class${Object.keys(editors).length + 1}`;
+                tabId = generateUniqueTabName('Class');
             }
-            const newTabName = `${tabId}.java`;
+            const displayName = tabId.endsWith('.java') ? tabId : `${tabId}.java`;
+
+            // Update tabHighestCount when a new tab is added
+            const [baseName, number] = tabId.split('_');
+            if (number) {
+                if (!tabHighestCount[baseName] || parseInt(number) > tabHighestCount[baseName]) {
+                    tabHighestCount[baseName] = parseInt(number);
+                }
+            }
 
             const newTabDiv = document.createElement('div');
             newTabDiv.className = 'tab';
             newTabDiv.id = `tab-${tabId}`;
-            newTabDiv.innerHTML = `${newTabName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
+            newTabDiv.innerHTML = `${displayName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="duplicate-btn" onclick="duplicateTab('${tabId}', event)">D</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
             newTabDiv.onclick = () => switchTab(tabId);
 
             const plusBtn = document.querySelector('.add-tab-btn');
@@ -544,6 +724,7 @@ input[type="file"] {
         }
 
         function switchTab(tabId) {
+            console.log(`Switching to tab: ${tabId}`);
             currentTab = tabId;
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.getElementById(`tab-${tabId}`).classList.add('active');
@@ -557,35 +738,120 @@ input[type="file"] {
         function closeTab(tabId, event) {
             event.stopPropagation();
             document.getElementById(`tab-${tabId}`).remove();
-            document.getElementById(`editor-${tabId}`).remove();
+            const editorElement = document.getElementById(`editor-${tabId}`);
+            if (editorElement) {
+                editorElement.remove();
+            }
             delete editors[tabId];
             tabOrder = tabOrder.filter(id => id !== tabId);
 
+            // Update tabHighestCount when a tab is closed
+            const [baseName, number] = tabId.split('_');
+            if (number && tabHighestCount[baseName]) {
+                // If this was the highest number, decrement it
+                if (parseInt(number) === tabHighestCount[baseName]) {
+                    tabHighestCount[baseName]--;
+                }
+            }
+
             if (tabOrder.length > 0) {
                 switchTab(tabOrder[tabOrder.length - 1]);
+            } else {
+                addNewTab(); // Create a new tab if all tabs are closed
             }
         }
 
         function editTabName(tabId, event) {
             event.stopPropagation();
             const tabElement = document.getElementById(`tab-${tabId}`);
-            const currentName = tabElement.childNodes[0].nodeValue;
+            const currentName = tabElement.childNodes[0].nodeValue.replace('.java', '');
             tabElement.innerHTML = `<input type="text" value="${currentName}" onblur="saveTabName('${tabId}', this)" onkeydown="handleTabNameKeydown(event, '${tabId}', this)" />`;
             tabElement.querySelector('input').focus();
         }
 
         function saveTabName(tabId, inputElement) {
-            const newName = inputElement.value.trim();
-            if (newName) {
-                const tabElement = document.getElementById(`tab-${tabId}`);
-                tabElement.innerHTML = `${newName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
+            let newName = inputElement.value.trim();
+            console.log(`Attempting to rename tab '${tabId}' to '${newName}'`);
+            console.log('Current tabOrder:', tabOrder);
+
+            if (newName && newName !== tabId) {
+                // Remove .java extension if present
+                newName = newName.replace(/\.java$/, '');
+                
+                console.log(`Checking if '${newName}' already exists`);
+                if (tabOrder.some(tab => tab.toLowerCase() === newName.toLowerCase()) && newName.toLowerCase() !== tabId.toLowerCase()) {
+                    console.log(`Tab name '${newName}' already exists`);
+                    alert(`A file named "${newName}.java" already exists. Please choose a different name.`);
+                    revertTabName(tabId);
+                } else {
+                    console.log(`Updating tab name from '${tabId}' to '${newName}'`);
+                    updateTabName(tabId, newName);
+                }
+            } else {
+                console.log(`Invalid new name or same as current name. Reverting.`);
+                revertTabName(tabId);
             }
+        }
+
+        function revertTabName(tabId) {
+            const tabElement = document.getElementById(`tab-${tabId}`);
+            const displayName = `${tabId}.java`;
+            tabElement.innerHTML = `${displayName}<span class="edit-btn" onclick="editTabName('${tabId}', event)">✎</span><span class="duplicate-btn" onclick="duplicateTab('${tabId}', event)">D</span><span class="close-btn" onclick="closeTab('${tabId}', event)">X</span>`;
         }
 
         function handleTabNameKeydown(event, tabId, inputElement) {
             if (event.key === 'Enter') {
                 saveTabName(tabId, inputElement);
             }
+        }
+
+        function duplicateTab(tabId, event) {
+            event.stopPropagation();
+            const originalCode = editors[tabId].getValue();
+            const originalClassName = tabId.split('_')[0]; // Get the base name without any numbers
+
+            if (!tabHighestCount[originalClassName]) {
+                tabHighestCount[originalClassName] = 0;
+            }
+
+            // Find the first available number
+            let newNumber = 1;
+            while (tabOrder.includes(`${originalClassName}_${newNumber}`)) {
+                newNumber++;
+            }
+
+            // Update the highest count if necessary
+            tabHighestCount[originalClassName] = Math.max(tabHighestCount[originalClassName], newNumber);
+
+            const newTabId = `${originalClassName}_${newNumber}`;
+            const newCode = originalCode.replace(new RegExp(`class\\s+${tabId.replace('_', '_?')}\\b`, 'g'), `class ${newTabId}`);
+
+            addNewTab(newTabId, newCode);
+        }
+
+        function generateUniqueTabName(baseName) {
+            let counter = 1;
+            let newName = baseName;
+            while (tabOrder.includes(newName)) {
+                newName = `${baseName}${counter}`;
+                counter++;
+            }
+            return newName;
+        }
+
+        function addInputField() {
+            const inputContainer = document.getElementById('input-container');
+            const newInputRow = document.createElement('div');
+            newInputRow.className = 'input-row';
+            newInputRow.innerHTML = `
+                <input type="text" placeholder="Enter input">
+                <button onclick="removeInputField(this)">-</button>
+            `;
+            inputContainer.appendChild(newInputRow);
+        }
+
+        function removeInputField(button) {
+            button.parentElement.remove();
         }
     </script>
 </body>
